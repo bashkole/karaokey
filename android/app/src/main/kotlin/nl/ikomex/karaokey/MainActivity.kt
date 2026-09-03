@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return KaraokeyViewModel(
+                        application = app,
                         tokenStore = app.tokenStore,
                         authManager = app.spotifyAuthManager,
                         queueRepository = app.queueRepository,
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
             val playbackState by viewModel.playbackState.collectAsState()
             val queue by viewModel.queueState.collectAsState()
             val queueLocked by viewModel.queueLocked.collectAsState()
+            val guestUrl by viewModel.guestUrl.collectAsState()
 
             androidx.compose.foundation.layout.Box(
                 modifier = Modifier
@@ -61,7 +63,7 @@ class MainActivity : ComponentActivity() {
                         playbackState = playbackState,
                         queue = queue,
                         queueLocked = queueLocked,
-                        guestUrl = viewModel.guestUrl,
+                        guestUrl = guestUrl,
                         onSkip = viewModel::skipCurrent,
                         onTogglePause = viewModel::togglePause,
                         onToggleQueueLock = viewModel::toggleQueueLock

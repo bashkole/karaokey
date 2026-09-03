@@ -1,13 +1,17 @@
 package nl.ikomex.karaokey.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import nl.ikomex.karaokey.BuildConfig
 import nl.ikomex.karaokey.data.session.PartySettings
 import nl.ikomex.karaokey.data.spotify.SpotifyAuthManager
@@ -25,16 +29,23 @@ data class LoginUiState(
 )
 
 class KaraokeyViewModel(
+    application: Application,
     private val tokenStore: TokenStore,
     private val authManager: SpotifyAuthManager,
     private val queueRepository: QueueRepository,
     private val partySettings: PartySettings,
     private val playbackController: PlaybackController,
     private val karaokeyServer: KaraokeyServer
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _loginState = MutableStateFlow(LoginUiState(isLoggedIn = tokenStore.isLoggedIn()))
     val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
+
+    private val _listeningPort = MutableStateFlow(BuildConfig.GUEST_SERVER_PORT)
+
+    val guestUrl: StateFlow<String> = _listeningPort
+        .map { port -> NetworkUtils.guestUrl(port, getApplication()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), NetworkUtils.guestUrl(BuildConfig.GUEST_SERVER_PORT, application))
 
     val playbackState = playbackController.state.stateIn(
         viewModelScope,
@@ -54,8 +65,6 @@ class KaraokeyViewModel(
         false
     )
 
-    val guestUrl: String = NetworkUtils.guestUrl(BuildConfig.GUEST_SERVER_PORT)
-
     init {
         viewModelScope.launch {
             authManager.authCompleted.collect { result ->
@@ -73,16 +82,30 @@ class KaraokeyViewModel(
     }
 
     fun startPartyServices() {
-        karaokeyServer.startServer()
-        playbackController.start()
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val port = karaokeyServer.startServer()
+                    _listeningPort.value = port
+                    playbackController.start()
+                }
+            } catch (e: Exception) {
+                _loginState.value = _loginState.value.copy(
+                    error = e.message ?: "Could not start guest server"
+                )
+            }
+        }
     }
 
     fun beginSpotifyLogin() {
         viewModelScope.launch {
             _loginState.value = _loginState.value.copy(isLoading = true, error = null, authorizeUrl = null)
             try {
-                karaokeyServer.startServer()
-                val stickHost = NetworkUtils.stickHostAddress(BuildConfig.GUEST_SERVER_PORT)
+                val port = withContext(Dispatchers.IO) {
+                    karaokeyServer.startServer()
+                }
+                _listeningPort.value = port
+                val stickHost = NetworkUtils.stickHostAddress(port, getApplication())
                 val session = authManager.beginAuthorization(stickHost)
                 _loginState.value = _loginState.value.copy(
                     isLoading = false,
@@ -123,7 +146,9 @@ class KaraokeyViewModel(
     fun logout() {
         tokenStore.clear()
         playbackController.stop()
-        karaokeyServer.stopServer()
+        viewModelScope.launch(Dispatchers.IO) {
+            karaokeyServer.stopServer()
+        }
         _loginState.value = LoginUiState(isLoggedIn = false)
     }
 }

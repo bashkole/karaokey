@@ -31,7 +31,7 @@ android {
         buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${localProp("SPOTIFY_CLIENT_ID")}\"")
         buildConfigField("String", "SPOTIFY_CLIENT_SECRET", "\"${localProp("SPOTIFY_CLIENT_SECRET")}\"")
         buildConfigField("String", "SPOTIFY_REDIRECT_URI", "\"${localProp("SPOTIFY_REDIRECT_URI")}\"")
-        buildConfigField("int", "GUEST_SERVER_PORT", "8080")
+        buildConfigField("int", "GUEST_SERVER_PORT", "8765")
     }
 
     buildTypes {
