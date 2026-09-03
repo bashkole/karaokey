@@ -24,11 +24,12 @@ class SpotifyApi(
 ) {
     suspend fun getProfile(): SpotifyUserProfile = authorizedGet("/me")
 
-    suspend fun searchTracks(query: String, limit: Int = 20): List<SpotifyTrack> {
+    suspend fun searchTracks(query: String, limit: Int = SEARCH_LIMIT): List<SpotifyTrack> {
+        val safeLimit = limit.coerceIn(1, SEARCH_LIMIT)
         val response: SearchResponse = authorizedGet("/search") {
             parameter("q", query)
             parameter("type", "track")
-            parameter("limit", limit)
+            parameter("limit", safeLimit)
         }
         return response.tracks?.items.orEmpty()
     }
@@ -152,6 +153,7 @@ class SpotifyApi(
 
     companion object {
         private const val API_BASE = "https://api.spotify.com/v1"
+        private const val SEARCH_LIMIT = 10
 
         private val json = Json { ignoreUnknownKeys = true }
 
