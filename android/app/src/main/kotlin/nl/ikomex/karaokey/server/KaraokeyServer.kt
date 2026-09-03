@@ -188,7 +188,7 @@ class KaraokeyServer(
             }
 
             if (uri.startsWith("/api/search") && method == Method.GET) {
-                val query = session.parms["q"].orEmpty().trim()
+                val query = HttpRequestUtils.queryParam(session, "q")
                 if (query.length < 2) {
                     return jsonResponse(json.encodeToString(ListSerializer(SearchResultDto.serializer()), emptyList()))
                 }
@@ -196,51 +196,59 @@ class KaraokeyServer(
                 if (!searchLimiter.allow(clientIp)) {
                     return jsonResponse(429, """{"error":"Rate limit exceeded"}""")
                 }
-                val tracks = runBlocking { spotifyApi.searchTracks(query) }
-                val results = tracks.map {
-                    SearchResultDto(
-                        uri = it.uri,
-                        name = it.name,
-                        artist = it.artists.joinToString { artist -> artist.name },
-                        albumArtUrl = it.album?.images?.firstOrNull()?.url,
-                        durationMs = it.duration_ms
-                    )
+                return try {
+                    val tracks = runBlocking { spotifyApi.searchTracks(query) }
+                    val results = tracks.map {
+                        SearchResultDto(
+                            uri = it.uri,
+                            name = it.name,
+                            artist = it.artists.joinToString { artist -> artist.name },
+                            albumArtUrl = it.album?.images?.firstOrNull()?.url,
+                            durationMs = it.duration_ms
+                        )
+                    }
+                    jsonResponse(json.encodeToString(ListSerializer(SearchResultDto.serializer()), results))
+                } catch (e: Exception) {
+                    jsonResponse(502, """{"error":${json.encodeToString(e.message ?: "Spotify search failed")}}""")
                 }
-                return jsonResponse(json.encodeToString(ListSerializer(SearchResultDto.serializer()), results))
             }
 
             if (uri == "/api/queue" && method == Method.POST) {
                 if (partySettings.queueLocked.value) {
                     return jsonResponse(403, """{"error":"Queue is locked by the host"}""")
                 }
-                val body = readBody(session)
-                val request = json.decodeFromString<AddQueueRequest>(body)
-                require(request.spotifyUri.startsWith("spotify:track:")) { "Invalid track URI" }
-                val item = runBlocking {
-                    queueRepository.addTrack(
-                        spotifyUri = request.spotifyUri,
-                        trackName = request.trackName,
-                        artistName = request.artistName,
-                        albumArtUrl = request.albumArtUrl,
-                        durationMs = request.durationMs,
-                        addedBy = request.addedBy
-                    ).also {
-                        playbackController.onTrackAdded()
+                return try {
+                    val body = readBody(session)
+                    val request = json.decodeFromString<AddQueueRequest>(body)
+                    require(request.spotifyUri.startsWith("spotify:track:")) { "Invalid track URI" }
+                    val item = runBlocking {
+                        queueRepository.addTrack(
+                            spotifyUri = request.spotifyUri,
+                            trackName = request.trackName,
+                            artistName = request.artistName,
+                            albumArtUrl = request.albumArtUrl,
+                            durationMs = request.durationMs,
+                            addedBy = request.addedBy
+                        ).also {
+                            playbackController.onTrackAdded()
+                        }
                     }
-                }
-                return jsonResponse(
-                    json.encodeToString(
-                        QueueItemDto.serializer(),
-                        QueueItemDto(
-                            id = item.id,
-                            spotifyUri = item.spotifyUri,
-                            trackName = item.trackName,
-                            artistName = item.artistName,
-                            addedBy = item.addedBy,
-                            status = item.status
+                    jsonResponse(
+                        json.encodeToString(
+                            QueueItemDto.serializer(),
+                            QueueItemDto(
+                                id = item.id,
+                                spotifyUri = item.spotifyUri,
+                                trackName = item.trackName,
+                                artistName = item.artistName,
+                                addedBy = item.addedBy,
+                                status = item.status
+                            )
                         )
                     )
-                )
+                } catch (e: Exception) {
+                    jsonResponse(500, """{"error":${json.encodeToString(e.message ?: "Could not add song")}}""")
+                }
             }
 
             if (uri.startsWith("/api/queue/") && method == Method.DELETE) {

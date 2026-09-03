@@ -21,6 +21,11 @@ function showError(message) {
   errorEl.classList.remove("hidden");
 }
 
+function clearError() {
+  errorEl.textContent = "";
+  errorEl.classList.add("hidden");
+}
+
 function setQueueLocked(locked) {
   queueLocked = locked;
   lockBannerEl.classList.toggle("hidden", !locked);
@@ -31,20 +36,35 @@ function setQueueLocked(locked) {
 }
 
 async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
+
+  if (response.status === 204) return null;
+
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || `Request failed (${response.status})`);
   }
-  if (response.status === 204) return null;
-  return response.json();
+  return payload;
 }
 
-function renderResults(tracks) {
+function renderResults(tracks, query) {
   resultsEl.innerHTML = "";
+  if (!tracks.length) {
+    const li = document.createElement("li");
+    li.className = "queue-item";
+    li.innerHTML = `<span class="meta">No results for "${escapeHtml(query)}"</span>`;
+    resultsEl.appendChild(li);
+    return;
+  }
+
   tracks.forEach((track) => {
     const li = document.createElement("li");
     li.className = "result-item";
@@ -85,6 +105,7 @@ async function addTrack(track) {
   }
   const addedBy = prompt("Your name (optional):") || "Guest";
   try {
+    clearError();
     await api("/api/queue", {
       method: "POST",
       body: JSON.stringify({
@@ -112,17 +133,20 @@ function escapeHtml(value) {
 
 searchInput.addEventListener("input", () => {
   clearTimeout(searchTimer);
+  clearError();
   const query = searchInput.value.trim();
   if (query.length < 2) {
     resultsEl.innerHTML = "";
     return;
   }
+  resultsEl.innerHTML = `<li class="queue-item"><span class="meta">Searching...</span></li>`;
   searchTimer = setTimeout(async () => {
     try {
       const tracks = await api(`/api/search?q=${encodeURIComponent(query)}`);
-      renderResults(tracks);
+      renderResults(tracks, query);
     } catch (error) {
-      showError("Could not reach Karaokey. Make sure you are on the same Wi-Fi.");
+      resultsEl.innerHTML = "";
+      showError(error.message || "Search failed. Check that Karaokey is still logged in to Spotify on the TV.");
     }
   }, 300);
 });
