@@ -1,0 +1,12 @@
+.env
+local.properties
+android/local.properties
+*.iml
+.idea/
+.gradle/
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
+.DS_Store

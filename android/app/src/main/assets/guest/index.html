@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaokey Queue</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Karaokey</h1>
+      <p>Add a song to the party queue</p>
+    </header>
+
+    <div id="lockBanner" class="lock-banner hidden">
+      Queue is locked by the host. You can still browse, but adds are disabled.
+    </div>
+
+    <section class="search">
+      <input id="searchInput" type="search" placeholder="Search any song..." autocomplete="off" />
+      <ul id="results"></ul>
+    </section>
+
+    <section class="queue">
+      <h2>Up next <span id="queueCount"></span></h2>
+      <ul id="queueList"></ul>
+    </section>
+
+    <p id="toast" class="toast hidden"></p>
+    <p id="error" class="error hidden"></p>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
