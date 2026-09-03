@@ -23,7 +23,9 @@ SPOTIFY_CLIENT_SECRET=your_client_secret
 SPOTIFY_REDIRECT_URI=https://karaokey.ikomex.nl/callback
 ```
 
-4. Keep the app in Development Mode for personal sideload use
+4. Add your Spotify account under **Users and Access** (Development Mode)
+
+Note: Spotify blocks Device Authorization for standard developer apps. Karaokey uses **Authorization Code + PKCE** with your redirect URI.
 
 ## Build
 
@@ -81,9 +83,9 @@ Or visit the homepage and tap **Download APK for Fire Stick**.
 ## Party night
 
 1. Open **Spotify** on the Fire Stick once (keeps Connect available)
-2. Launch **Karaokey** and connect Spotify using the on-screen code
-3. Guests scan the QR code on TV (or open the shown `http://<stick-ip>:8080/` URL)
-4. Guests search and add songs; lyrics appear on TV when each song plays
+2. Launch **Karaokey** → **Connect Spotify** → scan the QR code with your phone (same Wi-Fi)
+3. Log in to Spotify; after the browser hits `https://karaokey.ikomex.nl/callback`, return to the TV
+4. Guests scan the party QR on TV (or open `http://<stick-ip>:8080/`)
 
 ## Architecture
 
