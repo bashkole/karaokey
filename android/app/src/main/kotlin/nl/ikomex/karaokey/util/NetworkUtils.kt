@@ -16,4 +16,9 @@ object NetworkUtils {
         val ip = localIpAddress() ?: "localhost"
         return "http://$ip:$port/"
     }
+
+    fun stickHostAddress(port: Int): String {
+        val ip = localIpAddress() ?: error("Could not detect Fire Stick IP address")
+        return "$ip:$port"
+    }
 }

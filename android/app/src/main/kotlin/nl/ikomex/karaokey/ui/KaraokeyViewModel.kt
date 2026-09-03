@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import nl.ikomex.karaokey.BuildConfig
 import nl.ikomex.karaokey.data.session.PartySettings
-import nl.ikomex.karaokey.data.spotify.DeviceAuthResponse
 import nl.ikomex.karaokey.data.spotify.SpotifyAuthManager
 import nl.ikomex.karaokey.data.spotify.TokenStore
 import nl.ikomex.karaokey.data.queue.QueueRepository
@@ -21,7 +20,7 @@ import nl.ikomex.karaokey.util.NetworkUtils
 data class LoginUiState(
     val isLoggedIn: Boolean = false,
     val isLoading: Boolean = false,
-    val deviceAuth: DeviceAuthResponse? = null,
+    val authorizeUrl: String? = null,
     val error: String? = null
 )
 
@@ -57,6 +56,22 @@ class KaraokeyViewModel(
 
     val guestUrl: String = NetworkUtils.guestUrl(BuildConfig.GUEST_SERVER_PORT)
 
+    init {
+        viewModelScope.launch {
+            authManager.authCompleted.collect { result ->
+                result.onSuccess {
+                    _loginState.value = LoginUiState(isLoggedIn = true)
+                    startPartyServices()
+                }.onFailure { error ->
+                    _loginState.value = _loginState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Login failed"
+                    )
+                }
+            }
+        }
+    }
+
     fun startPartyServices() {
         karaokeyServer.startServer()
         playbackController.start()
@@ -64,20 +79,19 @@ class KaraokeyViewModel(
 
     fun beginSpotifyLogin() {
         viewModelScope.launch {
-            _loginState.value = _loginState.value.copy(isLoading = true, error = null)
+            _loginState.value = _loginState.value.copy(isLoading = true, error = null, authorizeUrl = null)
             try {
-                val deviceAuth = authManager.requestDeviceCode()
+                karaokeyServer.startServer()
+                val stickHost = NetworkUtils.stickHostAddress(BuildConfig.GUEST_SERVER_PORT)
+                val session = authManager.beginAuthorization(stickHost)
                 _loginState.value = _loginState.value.copy(
                     isLoading = false,
-                    deviceAuth = deviceAuth
+                    authorizeUrl = session.authorizeUrl
                 )
-                authManager.pollDeviceAuthorization(deviceAuth.deviceCode, deviceAuth.interval)
-                _loginState.value = LoginUiState(isLoggedIn = true)
-                startPartyServices()
             } catch (e: Exception) {
                 _loginState.value = _loginState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Login failed"
+                    error = e.message ?: "Could not start Spotify login"
                 )
             }
         }

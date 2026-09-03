@@ -46,6 +46,7 @@ class KaraokeyApplication : Application() {
         karaokeyServer = KaraokeyServer(
             port = BuildConfig.GUEST_SERVER_PORT,
             spotifyApi = spotifyApi,
+            spotifyAuthManager = spotifyAuthManager,
             queueRepository = queueRepository,
             partySettings = partySettings,
             playbackController = playbackController,

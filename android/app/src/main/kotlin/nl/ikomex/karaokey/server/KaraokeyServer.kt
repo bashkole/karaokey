@@ -20,6 +20,7 @@ import kotlinx.serialization.json.Json
 import nl.ikomex.karaokey.data.queue.QueueRepository
 import nl.ikomex.karaokey.data.session.PartySettings
 import nl.ikomex.karaokey.data.spotify.SpotifyApi
+import nl.ikomex.karaokey.data.spotify.SpotifyAuthManager
 import nl.ikomex.karaokey.playback.PlaybackController
 import java.io.IOException
 import java.util.Collections
@@ -59,9 +60,16 @@ data class PartyStatusDto(
     val queueSize: Int
 )
 
+@Serializable
+data class OAuthCompleteRequest(
+    val code: String,
+    val state: String
+)
+
 class KaraokeyServer(
     port: Int,
     private val spotifyApi: SpotifyApi,
+    private val spotifyAuthManager: SpotifyAuthManager,
     private val queueRepository: QueueRepository,
     private val partySettings: PartySettings,
     private val playbackController: PlaybackController,
@@ -131,6 +139,19 @@ class KaraokeyServer(
 
         if (uri == "/api/queue" && method == Method.GET) {
             return jsonResponse(json.encodeToString(ListSerializer(QueueItemDto.serializer()), buildQueueDto()))
+        }
+
+        if (uri == "/api/oauth/complete" && method == Method.POST) {
+            val body = readBody(session)
+            val request = json.decodeFromString<OAuthCompleteRequest>(body)
+            scope.launch {
+                spotifyAuthManager.completeAuthorization(request.code, request.state)
+            }
+            return corsResponse(jsonResponse("""{"status":"ok"}"""))
+        }
+
+        if (uri == "/api/oauth/complete" && method == Method.OPTIONS) {
+            return corsResponse(newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, ""))
         }
 
         if (uri.startsWith("/api/search") && method == Method.GET) {
@@ -281,6 +302,13 @@ class KaraokeyServer(
             else -> Response.Status.INTERNAL_ERROR
         }
         return newFixedLengthResponse(status, "application/json", body)
+    }
+
+    private fun corsResponse(response: Response): Response {
+        response.addHeader("Access-Control-Allow-Origin", "*")
+        response.addHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.addHeader("Access-Control-Allow-Headers", "Content-Type")
+        return response
     }
 
     private fun readBody(session: IHTTPSession): String {

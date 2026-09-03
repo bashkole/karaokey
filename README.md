@@ -8,19 +8,19 @@ Fire Stick karaoke companion for Spotify Premium. Guests add any song from their
 - Spotify Premium account
 - Spotify app installed on the Fire Stick
 - Android SDK (API 34) for building the APK
-- Spotify Developer app with Device Authorization enabled
+- Spotify Developer app (Authorization Code + PKCE; Device Authorization is not available for custom apps)
 
 ## Spotify Dashboard setup
 
 1. Create an app at https://developer.spotify.com/dashboard
-2. Add redirect URI: `http://karokey.ikomex.nl/callback` (optional for future phone login)
+2. Add redirect URI: `https://karaokey.ikomex.nl/callback`
 3. Copy Client ID and Client Secret into `android/local.properties`:
 
 ```properties
 sdk.dir=/path/to/Android/Sdk
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
-SPOTIFY_REDIRECT_URI=http://karokey.ikomex.nl/callback
+SPOTIFY_REDIRECT_URI=https://karaokey.ikomex.nl/callback
 ```
 
 4. Keep the app in Development Mode for personal sideload use
@@ -35,6 +35,42 @@ cd android
 ```
 
 APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~15 MB)
+
+## Web hosting and SSL
+
+The site is served at `https://karaokey.ikomex.nl/` once DNS and SSL are active.
+
+### 1. Add public DNS (required)
+
+`ikomex.nl` uses IONOS nameservers (`ui-dns.*`). Add this record in the IONOS DNS panel:
+
+| Type | Host | Value |
+|------|------|-------|
+| A | karaokey | 217.154.113.94 |
+
+Verify propagation:
+
+```bash
+dig +short karaokey.ikomex.nl @8.8.8.8
+```
+
+### 2. Enable SSL
+
+After DNS resolves publicly, run on the server:
+
+```bash
+./scripts/enable-karaokey-ssl.sh
+```
+
+This requests a Let's Encrypt certificate and switches nginx to HTTPS.
+
+### 3. Download APK on Fire Stick
+
+Open in **Downloader**:
+
+`https://karaokey.ikomex.nl/karaokey.apk`
+
+Or visit the homepage and tap **Download APK for Fire Stick**.
 
 ## Install on Fire Stick
 

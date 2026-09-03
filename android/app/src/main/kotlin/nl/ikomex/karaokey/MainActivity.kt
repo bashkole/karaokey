@@ -1,5 +1,7 @@
 package nl.ikomex.karaokey
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import nl.ikomex.karaokey.ui.KaraokeyViewModel
 import nl.ikomex.karaokey.ui.screens.LoginScreen
 import nl.ikomex.karaokey.ui.screens.PartyScreen
@@ -39,6 +43,7 @@ class MainActivity : ComponentActivity() {
         )[KaraokeyViewModel::class.java]
 
         viewModel.resumeIfLoggedIn()
+        handleOAuthIntent(intent)
 
         setContent {
             val loginState by viewModel.loginState.collectAsState()
@@ -68,6 +73,21 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleOAuthIntent(intent)
+    }
+
+    private fun handleOAuthIntent(intent: Intent?) {
+        val data: Uri = intent?.data ?: return
+        if (data.scheme != "karaokey" || data.host != "callback") return
+        val code = data.getQueryParameter("code") ?: return
+        val state = data.getQueryParameter("state") ?: return
+        lifecycleScope.launch {
+            (application as KaraokeyApplication).spotifyAuthManager.completeAuthorization(code, state)
         }
     }
 }
