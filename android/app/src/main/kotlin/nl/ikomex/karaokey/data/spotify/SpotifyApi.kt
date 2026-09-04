@@ -84,25 +84,12 @@ class SpotifyApi(
 
     suspend fun ensureActiveDevice(): SpotifyDevice? {
         val devices = getDevices()
-        val savedId = tokenStore.deviceId
-        val saved = devices.firstOrNull { it.id == savedId && !it.isRestricted }
-        if (saved != null) {
-            if (!saved.isActive) {
-                transferPlayback(saved.id!!, play = false)
-            }
-            return saved
+        val selected = PlaybackDeviceSelector.select(devices, tokenStore.deviceId)
+        val deviceId = selected?.id ?: return null
+        if (!selected.isActive || tokenStore.deviceId != deviceId) {
+            transferPlayback(deviceId, play = false)
         }
-
-        val fireTvDevice = devices.firstOrNull {
-            !it.isRestricted &&
-                (it.name.contains("Fire", ignoreCase = true) ||
-                    it.type.equals("TV", ignoreCase = true) ||
-                    it.type.equals("Cast", ignoreCase = true))
-        } ?: devices.firstOrNull { !it.isRestricted && it.isActive }
-            ?: devices.firstOrNull { !it.isRestricted }
-
-        fireTvDevice?.id?.let { transferPlayback(it, play = false) }
-        return fireTvDevice
+        return selected
     }
 
     private suspend fun authHeader(): String {

@@ -1,0 +1,23 @@
+# Karaokey vocal cut (mild)
+# Use this if medium makes the mix too thin.
+
+Preamp: -1.5 dB
+
+Copy: MLOW=0.5*L+0.5*R MVOX=0.5*L+0.5*R MAIR=0.5*L+0.5*R S=0.5*L+-0.5*R
+
+Channel: MLOW
+Filter: ON LPQ Fc 180 Hz Q 0.707
+
+Channel: MVOX
+Filter: ON HPQ Fc 180 Hz Q 0.707
+Filter: ON LPQ Fc 8000 Hz Q 0.707
+Preamp: -7.0 dB
+Filter: ON PK Fc 2500 Hz Gain -4.0 dB Q 1.20
+
+Channel: MAIR
+Filter: ON HPQ Fc 8000 Hz Q 0.707
+
+Channel: S
+Preamp: 1.5 dB
+
+Copy: L=MLOW+MVOX+MAIR+S R=MLOW+MVOX+MAIR+-S

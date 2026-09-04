@@ -96,6 +96,15 @@ fun PartyScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        playbackState.playbackDeviceName?.let { deviceName ->
+                            Text(
+                                text = "Audio on $deviceName",
+                                fontSize = 14.sp,
+                                color = Color(0xFF888888),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {

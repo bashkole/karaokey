@@ -1,20 +1,50 @@
 # Karaokey
 
-Fire Stick karaoke companion for Spotify Premium. Guests add any song from their phone browser; the TV shows synced lyrics while Spotify plays audio on the stick.
+Fire Stick karaoke for any Spotify song.
 
-## Prerequisites
+The host connects one Spotify Premium account. Guests on the same Wi-Fi scan a QR code and add tracks from their phone browser — no Spotify login required. The TV shows large synced lyrics while Spotify plays on a computer (a vocal filter and Bluetooth speakers are optional).
+
+This repository is meant to be cloned and built with **your** Spotify Developer app. Karaokey does not ship with working API keys.
+
+## What you need
 
 - Amazon Fire Stick on the same Wi-Fi as guest phones
-- Spotify Premium account
-- Spotify app installed on the Fire Stick
-- Android SDK (API 34) for building the APK
-- Spotify Developer app (Authorization Code + PKCE; Device Authorization is not available for custom apps)
+- A [Spotify Premium](https://www.spotify.com/premium/) account
+- A free [Spotify Developer](https://developer.spotify.com/dashboard) app (Client ID and Client Secret)
+- The [Spotify desktop app](https://www.spotify.com/download/) open on the computer that will play audio
+- Android SDK (API 34) and JDK 17 to build the APK
 
-## Spotify Dashboard setup
+Guests never need Spotify. Only the host account does.
 
-1. Create an app at https://developer.spotify.com/dashboard
-2. Add redirect URI: `https://karaokey.ikomex.nl/callback`
-3. Copy Client ID and Client Secret into `android/local.properties`:
+## 1. Create a Spotify Developer app
+
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and log in with the Premium account you will use at the party.
+2. Click **Create app**.
+3. Give it a name and description (for example `Karaokey`).
+4. Add a redirect URI. Pick one:
+
+   | Option | Redirect URI | When to use it |
+   | --- | --- | --- |
+   | Public relay (easiest) | `https://karaokey.ikomex.nl/callback` | You do not want to host anything |
+   | Your GitHub Pages site | `https://<your-username>.github.io/karaokey/callback/` | You enabled Pages on this repo (see below) |
+
+   The URI must match **exactly**, including `https` and the trailing slash if you use one.
+5. Save the app, then open **Settings** and copy **Client ID** and **Client Secret**.
+6. Under **Users and Access**, add the Spotify account that will log in on the TV. New apps start in Development Mode and only listed users can authorize.
+
+Karaokey uses **Authorization Code + PKCE**. Device Authorization is not available for custom Spotify apps.
+
+## 2. Add your credentials
+
+Clone this repository, then copy the example properties file:
+
+```bash
+git clone https://github.com/<your-username>/karaokey.git
+cd karaokey
+cp android/local.properties.example android/local.properties
+```
+
+Edit `android/local.properties`:
 
 ```properties
 sdk.dir=/path/to/Android/Sdk
@@ -23,80 +53,79 @@ SPOTIFY_CLIENT_SECRET=your_client_secret
 SPOTIFY_REDIRECT_URI=https://karaokey.ikomex.nl/callback
 ```
 
-4. Add your Spotify account under **Users and Access** (Development Mode)
+- `sdk.dir` is your Android SDK path (Android Studio shows this under Settings → Languages & Frameworks → Android SDK).
+- `SPOTIFY_REDIRECT_URI` must be the same URI you registered in the Spotify Dashboard.
 
-Note: Spotify blocks Device Authorization for standard developer apps. Karaokey uses **Authorization Code + PKCE** with your redirect URI.
+These values are compiled into the APK. They are not read from `.env` at runtime. Do not commit `android/local.properties`.
 
-## Build
-
-Requires Android SDK API 34. On this server:
+## 3. Build the APK
 
 ```bash
 cd android
 ./gradlew assembleDebug
 ```
 
-APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~15 MB)
+The APK is written to:
 
-## Web hosting and SSL
+`android/app/build/outputs/apk/debug/app-debug.apk`
 
-The site is served at `https://karaokey.ikomex.nl/` once DNS and SSL are active.
+## 4. Install on the Fire Stick
 
-### 1. Add public DNS (required)
+**Option A — Downloader app**
 
-`ikomex.nl` uses IONOS nameservers (`ui-dns.*`). Add this record in the IONOS DNS panel:
+Copy the APK to any HTTPS URL you control, or use a USB stick / shared folder. On the Fire Stick, open **Downloader** and enter that URL.
 
-| Type | Host | Value |
-|------|------|-------|
-| A | karaokey | 217.154.113.94 |
+**Option B — ADB**
 
-Verify propagation:
-
-```bash
-dig +short karaokey.ikomex.nl @8.8.8.8
-```
-
-### 2. Enable SSL
-
-After DNS resolves publicly, run on the server:
+1. On the Fire Stick: Settings → My Fire TV → Developer Options → enable **ADB debugging** and **Apps from Unknown Sources**.
+2. From your computer:
 
 ```bash
-./scripts/enable-karaokey-ssl.sh
+adb connect <fire-stick-ip>:5555
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-This requests a Let's Encrypt certificate and switches nginx to HTTPS.
+Launch **Karaokey** from Apps.
 
-### 3. Download APK on Fire Stick
+## 5. Start a party
 
-Open in **Downloader**:
+1. Open **Spotify on the computer** and leave it running. That computer is the audio device.
+2. Optional: apply the [vocal filter](audio-filter/README.md) on that computer and pair Bluetooth speakers there.
+3. Open **Karaokey** on the Fire Stick → **Connect Spotify**.
+4. Scan the QR code with your phone (same Wi-Fi). Log in with the Premium account you added under Users and Access.
+5. After the browser shows that Spotify is connected, return to the TV.
+6. Guests scan the party QR on the TV, or open `http://<stick-ip>:8765/` in a phone browser.
 
-`https://karaokey.ikomex.nl/karaokey.apk`
+Fire OS cannot play Spotify audio in the background while Karaokey is on screen. Keep Spotify on the computer and mute the TV if needed.
 
-Or visit the homepage and tap **Download APK for Fire Stick**.
+## GitHub Pages intro and callback
 
-## Install on Fire Stick
+This repo includes a public intro site in `docs/`. After you push to GitHub:
 
-1. Enable **Developer Options** and **ADB debugging** on the Fire Stick
-2. Connect: `adb connect <fire-stick-ip>:5555`
-3. Install: `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+1. Open the repository → **Settings** → **Pages**.
+2. Set **Source** to **Deploy from a branch**.
+3. Branch: `main` (or `master`), folder: `/docs`.
+4. Save. The site will be at `https://<your-username>.github.io/karaokey/`.
+5. If you want to use that site as the Spotify redirect, add `https://<your-username>.github.io/karaokey/callback/` in the Spotify Dashboard and in `android/local.properties`, then rebuild the APK.
 
-## Party night
+The callback page only forwards the login code to your Fire Stick on the local network. It does not store tokens.
 
-1. Open **Spotify** on the Fire Stick once (keeps Connect available)
-2. Launch **Karaokey** → **Connect Spotify** → scan the QR code with your phone (same Wi-Fi)
-3. Log in to Spotify; after the browser hits `https://karaokey.ikomex.nl/callback`, return to the TV
-4. Guests scan the party QR on TV (or open `http://<stick-ip>:8080/`)
+## Optional vocal filter
 
-## Architecture
-
-- Android TV app (Kotlin + Compose for TV)
-- Embedded Ktor server on port 8080 for guest phones
-- Room SQLite for party queue
-- Spotify Web API for search and playback control
-- LRCLIB for synced lyrics
+Karaokey never sees the Spotify audio stream, so it cannot remove vocals on the TV. To duck centered lead vocals, run a filter on the computer that plays Spotify. See [audio-filter/README.md](audio-filter/README.md).
 
 ## Limitations
 
-- No vocal removal (Spotify does not expose raw audio to third-party apps)
-- Host Premium account required
-- Guest phones must be on the same local network as the Fire Stick
+- Spotify Premium is required for the host account
+- Guest phones must be on the same Wi-Fi as the Fire Stick
+- Spotify Development Mode allows a limited number of users per app
+- No vocal removal inside the TV app
+- Lyrics come from [LRCLIB](https://lrclib.net/) and are missing for some tracks
+
+## Architecture
+
+- Android TV app (Kotlin + Jetpack Compose for TV)
+- Embedded local web server on port 8765 for guest phones
+- Room SQLite for the party queue
+- Spotify Web API for search and playback control
+- LRCLIB for synced lyrics

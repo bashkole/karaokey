@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify connected</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; background: #0b0b0b; color: #f5f5f5; }
+    .ok { color: #1db954; }
+    .err { color: #ff6b6b; }
+    code { background: #1a1a1a; padding: 8px; display: block; word-break: break-all; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Spotify login</h1>
+  <p id="message">Processing...</p>
+  <pre id="details" hidden></pre>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const message = document.getElementById("message");
+    const details = document.getElementById("details");
+
+    async function relayToFireStick(code, state) {
+      let payload;
+      try {
+        payload = JSON.parse(decodeURIComponent(state));
+      } catch (_) {
+        try {
+          payload = JSON.parse(state);
+        } catch (error) {
+          throw new Error("Invalid OAuth state returned by Spotify.");
+        }
+      }
+      if (!payload.host) {
+        throw new Error("Missing Fire Stick address in OAuth state.");
+      }
+      const response = await fetch(`http://${payload.host}/api/oauth/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, state: JSON.stringify(payload) }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || `Fire Stick relay failed (${response.status})`);
+      }
+    }
+
+    (async () => {
+      if (params.get("error")) {
+        message.textContent = "Spotify login failed.";
+        message.className = "err";
+        details.hidden = false;
+        details.textContent = params.get("error_description") || params.get("error");
+        return;
+      }
+
+      const code = params.get("code");
+      const state = params.get("state");
+      if (!code || !state) {
+        message.textContent = "No authorization data in this URL.";
+        message.className = "err";
+        return;
+      }
+
+      try {
+        await relayToFireStick(code, state);
+        message.textContent = "Spotify connected. Return to Karaokey on your Fire Stick.";
+        message.className = "ok";
+      } catch (error) {
+        message.textContent = "Could not send login to your Fire Stick.";
+        message.className = "err";
+        details.hidden = false;
+        details.textContent = `${error.message}\n\nMake sure your phone is on the same Wi-Fi as the Fire Stick, then try Connect Spotify again on the TV.`;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,4 +1,7 @@
 sdk.dir=/path/to/Android/Sdk
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
+# Must match a Redirect URI registered on your Spotify Developer app.
+# Public relay: https://karaokey.ikomex.nl/callback
+# GitHub Pages: https://YOUR_USERNAME.github.io/karaokey/callback/
 SPOTIFY_REDIRECT_URI=https://karaokey.ikomex.nl/callback

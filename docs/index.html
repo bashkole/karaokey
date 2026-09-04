@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaokey — Fire Stick karaoke for Spotify</title>
+  <meta name="description" content="Sideload Karaokey on a Fire Stick, add your Spotify Developer credentials, and let guests queue any song from their phones." />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0b0b;
+      --panel: #141414;
+      --text: #f5f5f5;
+      --muted: #9a9a9a;
+      --green: #1db954;
+      --line: #2a2a2a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { color: var(--green); font-size: 48px; margin: 0 0 8px; letter-spacing: -0.03em; }
+    h2 { margin-top: 40px; font-size: 22px; }
+    p.lead { color: var(--muted); font-size: 18px; margin-top: 0; }
+    ol.setup { padding-left: 22px; }
+    ol.setup li { margin: 10px 0; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      overflow-x: auto;
+    }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+    pre { margin: 0; white-space: pre-wrap; }
+    a { color: var(--green); }
+    .cta {
+      display: inline-block;
+      margin: 8px 12px 0 0;
+      padding: 12px 20px;
+      background: var(--green);
+      color: #000;
+      text-decoration: none;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+    .cta.secondary { background: transparent; color: var(--green); border: 1px solid var(--green); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .muted { color: var(--muted); }
+    footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Karaokey</h1>
+    <p class="lead">Fire Stick karaoke for any Spotify song. Build it with your own Spotify Developer credentials, connect a Premium account, and let guests add tracks from their phones.</p>
+
+    <p>
+      <a class="cta" href="https://github.com/" id="repo-link">Get the source on GitHub</a>
+      <a class="cta secondary" href="#credentials">Add credentials and build</a>
+    </p>
+
+    <h2>How a party works</h2>
+    <ol class="setup">
+      <li>You sideload the APK on a Fire Stick.</li>
+      <li>Karaokey asks the host to log in with Spotify Premium.</li>
+      <li>Guests scan a QR code on the TV and search from a phone browser. They do not need Spotify.</li>
+      <li>The TV shows synced lyrics. Audio plays from the Spotify app on a computer.</li>
+    </ol>
+
+    <h2 id="credentials">Add your credentials, then build</h2>
+    <p>Karaokey does not include API keys. Create a free app in the <a href="https://developer.spotify.com/dashboard">Spotify Developer Dashboard</a>, then put the values in <code>android/local.properties</code> before you compile.</p>
+
+    <div class="panel">
+      <pre>sdk.dir=/path/to/Android/Sdk
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+SPOTIFY_REDIRECT_URI=https://YOUR_USERNAME.github.io/karaokey/callback/</pre>
+    </div>
+
+    <p>Register that same redirect URI on the Spotify app. If you do not want to host a callback yourself, use <code>https://karaokey.ikomex.nl/callback</code> instead.</p>
+
+    <table>
+      <thead>
+        <tr><th>You need</th><th>Why</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Spotify Premium</td><td>Host login and playback control</td></tr>
+        <tr><td>Spotify Developer app</td><td>Client ID, Client Secret, and a listed user in Development Mode</td></tr>
+        <tr><td>Android SDK (API 34) + JDK 17</td><td>Build the Fire Stick APK</td></tr>
+        <tr><td>Spotify desktop app</td><td>Audio device for the party</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Build and install</h2>
+    <div class="panel">
+      <pre>cp android/local.properties.example android/local.properties
+# edit credentials and sdk.dir
+
+cd android
+./gradlew assembleDebug
+
+adb connect &lt;fire-stick-ip&gt;:5555
+adb install -r app/build/outputs/apk/debug/app-debug.apk</pre>
+    </div>
+
+    <p class="muted">On the Fire Stick, enable Developer Options, ADB debugging, and apps from unknown sources. After install, open Karaokey, tap Connect Spotify, and scan the QR code on the same Wi-Fi.</p>
+
+    <h2>This GitHub Pages site</h2>
+    <p>Enable Pages on the repository (Settings → Pages → Deploy from branch → <code>/docs</code>). Then this page is your public intro, and <a href="callback/">/callback/</a> can be the Spotify redirect URI.</p>
+
+    <footer>
+      Vocal filtering, if you want it, runs on the computer that plays Spotify. See <code>audio-filter/README.md</code> in the repository.
+    </footer>
+  </main>
+  <script>
+    const repoLink = document.getElementById("repo-link");
+    const host = window.location.hostname;
+    const match = host.match(/^([^.]+)\.github\.io$/);
+    if (match) {
+      const path = window.location.pathname.replace(/\/$/, "");
+      const repo = path.split("/").filter(Boolean)[0] || "karaokey";
+      repoLink.href = `https://github.com/${match[1]}/${repo}`;
+    }
+  </script>
+</body>
+</html>

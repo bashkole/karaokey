@@ -16,6 +16,7 @@ import nl.ikomex.karaokey.data.lyrics.LyricsRepository
 import nl.ikomex.karaokey.data.queue.QueueItemEntity
 import nl.ikomex.karaokey.data.queue.QueueRepository
 import nl.ikomex.karaokey.data.spotify.SpotifyApi
+import nl.ikomex.karaokey.data.spotify.SpotifyDevice
 
 data class PlaybackUiState(
     val currentTrack: QueueItemEntity? = null,
@@ -24,7 +25,8 @@ data class PlaybackUiState(
     val progressMs: Long = 0,
     val durationMs: Long = 0,
     val isPlaying: Boolean = false,
-    val statusMessage: String? = null
+    val statusMessage: String? = null,
+    val playbackDeviceName: String? = null
 )
 
 class PlaybackController(
@@ -44,7 +46,7 @@ class PlaybackController(
     fun start() {
         if (advanceJob?.isActive == true) return
         advanceJob = scope.launch {
-            spotifyApi.ensureActiveDevice()
+            ensureComputerPlayback()
             while (isActive) {
                 try {
                     val playing = queueRepository.getCurrentlyPlaying()
@@ -56,7 +58,11 @@ class PlaybackController(
                             _state.value = _state.value.copy(
                                 currentTrack = null,
                                 lyrics = null,
-                                statusMessage = "Scan the QR code to add songs"
+                                statusMessage = if (_state.value.playbackDeviceName == null) {
+                                    "Open Spotify on the computer. Fire Stick cannot play audio while Karaokey is open."
+                                } else {
+                                    "Scan the QR code to add songs"
+                                }
                             )
                         }
                     }
@@ -99,8 +105,11 @@ class PlaybackController(
     }
 
     private suspend fun playQueueItem(item: QueueItemEntity) {
+        val device = ensureComputerPlayback()
+        if (device == null) {
+            return
+        }
         queueRepository.markPlaying(item)
-        spotifyApi.ensureActiveDevice()
         spotifyApi.playTrack(item.spotifyUri)
         val lyrics = lyricsRepository.getLyrics(item.trackName, item.artistName)
         lastProgressMs = 0
@@ -110,8 +119,22 @@ class PlaybackController(
             lyrics = lyrics,
             durationMs = item.durationMs,
             isPlaying = true,
+            playbackDeviceName = device.name,
             statusMessage = null
         )
+    }
+
+    private suspend fun ensureComputerPlayback(): SpotifyDevice? {
+        val device = spotifyApi.ensureActiveDevice()
+        _state.value = _state.value.copy(
+            playbackDeviceName = device?.name,
+            statusMessage = if (device == null) {
+                "Open Spotify on the computer. Fire Stick cannot play audio while Karaokey is open."
+            } else {
+                _state.value.statusMessage
+            }
+        )
+        return device
     }
 
     private suspend fun advanceToNext(currentItem: QueueItemEntity) {

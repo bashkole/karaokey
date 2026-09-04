@@ -10,3 +10,6 @@ android/build/
 *.apk
 *.aab
 .DS_Store
+audio-filter/.venv/
+audio-filter/.pytest_cache/
+__pycache__/
